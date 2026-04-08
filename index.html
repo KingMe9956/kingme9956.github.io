@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KYIAM Universe  Services</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0A0A1A;color:#F0F0FF;font-family:Inter,system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+header{padding:32px 24px 0;text-align:center}
+h1{font-size:3rem;font-weight:900;background:linear-gradient(135deg,#00FFA3,#03E1FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{color:#9090B0;margin-top:8px;font-size:1rem}
+main{flex:1;max-width:560px;margin:40px auto;padding:0 24px;width:100%}
+.service{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:24px;margin-bottom:16px}
+.service h3{font-size:1.1rem;font-weight:700;margin-bottom:6px}
+.service p{color:#9090B0;font-size:0.85rem;margin-bottom:16px}
+.price{font-size:1.4rem;font-weight:800;color:#00FFA3;margin-bottom:16px}
+.btn{background:linear-gradient(135deg,#00FFA3,#03E1FF);color:#000;border:none;padding:12px 28px;border-radius:8px;font-weight:800;cursor:pointer;font-size:0.95rem;width:100%}
+.btn:hover{opacity:0.9}
+/* Checkout */
+#checkout{display:none;background:rgba(255,255,255,0.04);border:1px solid #00FFA3;border-radius:16px;padding:28px;margin-bottom:16px}
+#checkout h2{margin-bottom:16px;color:#00FFA3}
+select{width:100%;padding:12px;background:#111;border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#F0F0FF;font-size:1rem;margin-bottom:16px}
+.wallet-box{background:#111;border-radius:8px;padding:16px;word-break:break-all;font-size:0.8rem;color:#03E1FF;margin-bottom:16px;border:1px solid rgba(3,225,255,0.2)}
+.instructions{color:#9090B0;font-size:0.85rem;line-height:1.6;margin-bottom:16px}
+.back{background:transparent;border:1px solid #00FFA3;color:#00FFA3;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:0.9rem;width:100%}
+footer{text-align:center;padding:32px 24px;color:#555;font-size:0.72rem;border-top:1px solid rgba(255,255,255,0.05)}
+footer a{color:#00FFA3;text-decoration:none}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>KYIAM</h1>
+  <p class="sub">Professional AI Infrastructure Services</p>
+</header>
+
+<main>
+  <div id="services">
+    <div class="service">
+      <h3>KYIAM Agent Setup</h3>
+      <p>Full AI agent configuration, deployment, and integration into your stack.</p>
+      <div class="price">$97 USDC</div>
+      <button class="btn" onclick="checkout('KYIAM Agent Setup','97')">Get Started</button>
+    </div>
+    <div class="service">
+      <h3>KYIAM Stack Consultation</h3>
+      <p>1-on-1 architecture review. Real answers. No loops.</p>
+      <div class="price">$197 USDC</div>
+      <button class="btn" onclick="checkout('KYIAM Stack Consultation','197')">Book Now</button>
+    </div>
+    <div class="service">
+      <h3>KYIAM Full Build</h3>
+      <p>End-to-end project build. Frontend, backend, deployed and live.</p>
+      <div class="price">$497 USDC</div>
+      <button class="btn" onclick="checkout('KYIAM Full Build','497')">Start Build</button>
+    </div>
+    <div class="service">
+      <h3>KYIAM Registry Listing</h3>
+      <p>List your AI agent on the KYIAM Universe Global Registry.</p>
+      <div class="price">$47 USDC</div>
+      <button class="btn" onclick="checkout('KYIAM Registry Listing','47')">List My Agent</button>
+    </div>
+  </div>
+
+  <div id="checkout">
+    <h2 id="co-title"></h2>
+    <p style="margin-bottom:16px">Amount: <strong id="co-price" style="color:#00FFA3"></strong> USDC</p>
+    <p style="color:#9090B0;font-size:0.85rem;margin-bottom:8px">Select your network:</p>
+    <select id="networkSelect" onchange="updateWallet()">
+      <option value="Solana">Solana</option>
+      <option value="Ethereum">Ethereum</option>
+      <option value="Base">Base</option>
+      <option value="Polygon">Polygon</option>
+      <option value="Arbitrum">Arbitrum</option>
+      <option value="Optimism">Optimism</option>
+    </select>
+    <p style="color:#9090B0;font-size:0.85rem;margin-bottom:8px">Send USDC to this address:</p>
+    <div class="wallet-box" id="walletDisplay"></div>
+    <div class="instructions">
+      1. Send exactly <strong id="co-price2" style="color:#00FFA3"></strong> USDC on <strong id="co-network" style="color:#03E1FF"></strong><br>
+      2. Email your transaction hash to <strong style="color:#00FFA3">KingMe9956@KYIAM.com</strong><br>
+      3. Include the service name in your email<br>
+      4. You will receive confirmation within 24 hours
+    </div>
+    <button class="back" onclick="goBack()">← Back to Services</button>
+  </div>
+</main>
+
+<footer>
+  Copyright KYIAM.UNIVER.SE © 2024–2026<br>
+  ALL RIGHTS RESERVED — <a href="mailto:KingMe9956@KYIAM.com">KingMe9956@KYIAM.com</a>
+</footer>
+
+<script>
+const WALLETS = {
+  Solana:   'REPLACE_WITH_YOUR_SOLANA_USDC_WALLET',
+  Ethereum: 'REPLACE_WITH_YOUR_ETH_USDC_WALLET',
+  Base:     'REPLACE_WITH_YOUR_BASE_USDC_WALLET',
+  Polygon:  'REPLACE_WITH_YOUR_POLYGON_USDC_WALLET',
+  Arbitrum: 'REPLACE_WITH_YOUR_ARBITRUM_USDC_WALLET',
+  Optimism: 'REPLACE_WITH_YOUR_OPTIMISM_USDC_WALLET'
+};
+
+function checkout(name, price) {
+  document.getElementById('services').style.display = 'none';
+  document.getElementById('checkout').style.display = 'block';
+  document.getElementById('co-title').textContent = name;
+  document.getElementById('co-price').textContent = '$' + price;
+  document.getElementById('co-price2').textContent = '$' + price;
+  updateWallet();
+}
+
+function updateWallet() {
+  const net = document.getElementById('networkSelect').value;
+  document.getElementById('walletDisplay').textContent = WALLETS[net];
+  document.getElementById('co-network').textContent = net;
+}
+
+function goBack() {
+  document.getElementById('checkout').style.display = 'none';
+  document.getElementById('services').style.display = 'block';
+}
+</script>
+</body>
+</html>
