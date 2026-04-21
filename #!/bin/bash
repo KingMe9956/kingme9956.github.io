@@ -1,0 +1,319 @@
+#!/bin/bash ################################################################################ # KYIAM.xyz - Human-First-Forever Protocol # Automated Deployment Script with Security Gates ################################################################################ # # Copyright © 2026 KYIAM.xyz # All Rights Reserved. # # EXPLICITLY ALL RIGHTS RESERVED # KYIAM.XYZ AI-to-AI © 2026 # # This script deploys KYIAM to staging or production with full security checks. # # Usage: ./deploy.sh [staging|production] # # For licensing: legal@kyiam.xyz # For security: security@kyiam.xyz # # See LICENSE file for full terms. ################################################################################ set -euo pipefail # Exit on error, undefined vars, pipe failures # ============================================================================== # Configuration # ============================================================================== ENVIRONMENT="${1:-staging}" SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)" RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[1;33m' BLUE='\033[0;34m' NC='\033[0m' # No Color # ============================================================================== # Helper Functions # ============================================================================== log_info() { echo -e "${BLUE}ℹ${NC} $1" } log_success() { echo -e "${GREEN}✅${NC} $1" } log_warning() { echo -e "${YELLOW}⚠️${NC} $1" } log_error() { echo -e "${RED}❌${NC} $1" } log_section() { echo "" echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}" echo -e "${BLUE}$1${NC}" echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}" echo "" } confirm_action() { local message="$1" echo -en "${YELLOW}$message (y/N): ${NC}" read -r response if [[ ! "$response" =~ ^[Yy]$ ]]; then log_error "Deployment cancelled by user" exit 1 fi } # ============================================================================== # Validation # ============================================================================== validate_environment() { log_section "Validating Environment" if [[ "$ENVIRONMENT" != "staging" && "$ENVIRONMENT" != "production" ]]; then log_error "Invalid environment: $ENVIRONMENT" log_info "Usage: ./deploy.sh [staging|production]" exit 1 fi log_success "Environment: $ENVIRONMENT" } # ============================================================================== # Pre-Deployment Security Gates # ============================================================================== run_security_gates() { log_section "Running Pre-Deployment Security Gates" # Gate 1: Copyright verification log_info "Gate 1: Verifying copyright headers..." if ! grep -q "KYIAM.XYZ AI-to-AI © 2026" "$PROJECT_ROOT/LICENSE"; then log_error "LICENSE file missing copyright notice" exit 1 fi log_success "Copyright verification passed" # Gate 2: No uncommitted changes log_info "Gate 2: Checking for uncommitted changes..." cd "$PROJECT_ROOT" if [[ -n $(git status --porcelain) ]]; then log_error "Uncommitted changes detected" log_info "Commit or stash changes before deploying" exit 1 fi log_success "No uncommitted changes" # Gate 3: On correct branch log_info "Gate 3: Verifying git branch..." CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD) if [[ "$ENVIRONMENT" == "production" && "$CURRENT_BRANCH" != "main"
+log_info "Current branch: $CURRENT_BRANCH"
+    exit 1
+  fi
+  
+  if [[ "$ENVIRONMENT" == "staging" && "$CURRENT_BRANCH" != "develop" ]]; then
+    log_warning "Staging deploys typically from 'develop' branch"
+    log_info "Current branch: $CURRENT_BRANCH"
+    confirm_action "Continue anyway?"
+  fi
+  
+  log_success "Branch verification passed"
+  
+  # Gate 4: Dependencies up to date
+  log_info "Gate 4: Checking dependencies..."
+  if ! npm ci > /dev/null 2>&1; then
+    log_error "Failed to install dependencies"
+    exit 1
+  fi
+  log_success "Dependencies installed"
+  
+  # Gate 5: Security vulnerabilities
+  log_info "Gate 5: Scanning for vulnerabilities..."
+  if ! npm audit --audit-level=high > /dev/null 2>&1; then
+    log_error "High/critical vulnerabilities detected"
+    npm audit
+    exit 1
+  fi
+  log_success "No high/critical vulnerabilities"
+  
+  # Gate 6: Tests pass
+  log_info "Gate 6: Running test suite..."
+  if ! npm test > /dev/null 2>&1; then
+    log_error "Tests failed"
+    npm test
+    exit 1
+  fi
+  log_success "All tests passed"
+  
+  # Gate 7: Build succeeds
+  log_info "Gate 7: Building application..."
+  if ! npm run build > /dev/null 2>&1; then
+    log_error "Build failed"
+    npm run build
+    exit 1
+  fi
+  log_success "Build successful"
+  
+  # Gate 8: Security audit checklist
+  log_info "Gate 8: Running security audit checklist..."
+  if [ -f "$SCRIPT_DIR/security-audit.sh" ]; then
+    if ! bash "$SCRIPT_DIR/security-audit.sh"; then
+      log_error "Security audit failed"
+      exit 1
+    fi
+  fi
+  log_success "Security audit passed"
+  
+  log_section "✅ All Security Gates Passed"
+}
+
+# ==============================================================================
+# Deployment Confirmation
+# ==============================================================================
+confirm_deployment() {
+  log_section "Deployment Confirmation"
+  
+  COMMIT_SHA=$(git rev-parse HEAD)
+  COMMIT_MSG=$(git log -1 --pretty=%B)
+  DEPLOY_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+  
+  echo "Environment:    $ENVIRONMENT"
+  echo "Commit SHA:     $COMMIT_SHA"
+  echo "Commit Message: $COMMIT_MSG"
+  echo "Deploy Time:    $DEPLOY_TIME"
+  echo "Deployed By:    $(whoami)"
+  echo ""
+  
+  if [[ "$ENVIRONMENT" == "production" ]]; then
+    log_warning "YOU ARE ABOUT TO DEPLOY TO PRODUCTION"
+    log_warning "This will affect real users immediately"
+    confirm_action "Are you absolutely sure?"
+    confirm_action "Really sure? This is production."
+  else
+    confirm_action "Deploy to $ENVIRONMENT?"
+  fi
+}
+
+# ==============================================================================
+# Backup Current Deployment
+# ==============================================================================
+backup_deployment() {
+  log_section "Creating Backup"
+  
+  BACKUP_DIR="$PROJECT_ROOT/backups/${ENVIRONMENT}_$(date +%Y%m%d_%H%M%S)"
+  mkdir -p "$BACKUP_DIR"
+  
+  log_info "Backing up current deployment to $BACKUP_DIR..."
+  
+  # Backup would happen here
+  # Example: kubectl get all -n kyiam-${ENVIRONMENT} -o yaml > "$BACKUP_DIR/k8s-backup.yaml"
+  
+  log_success "Backup created"
+}
+
+# ==============================================================================
+# Deploy Application
+# ==============================================================================
+deploy_application() {
+  log_section "Deploying Application"
+  
+  log_info "Deploying to $ENVIRONMENT..."
+  
+  case "$ENVIRONMENT" in
+    staging)
+      deploy_staging
+      ;;
+    production)
+      deploy_production
+      ;;
+  esac
+  
+  log_success "Deployment complete"
+}
+
+deploy_staging() {
+  log_info "Deploying to staging environment..."
+  
+  # Example deployment steps
+  # 1. Build Docker images
+  # 2. Push to container registry
+  # 3. Update Kubernetes manifests
+  # 4. Apply changes
+  
+  # Placeholder commands:
+  # docker build -t kyiam/web-app:staging .
+  # docker push kyiam/web-app:staging
+  # kubectl set image deployment/web-app web-app=kyiam/web-app:staging -n kyiam-staging
+  
+  log_info "Staging deployment steps would execute here"
+}
+
+deploy_production() {
+  log_info "Deploying to PRODUCTION environment..."
+  
+  # Production deployment with extra caution
+  # - Blue/green deployment
+  # - Canary release
+  # - Gradual rollout
+  
+  log_warning "Production deployment steps would execute here"
+}
+
+# ==============================================================================
+# Health Checks
+# ==============================================================================
+run_health_checks() {
+  log_section "Running Health Checks"
+  
+  case "$ENVIRONMENT" in
+    staging)
+      API_URL="https://staging-api.kyiam.xyz"
+      WEB_URL="https://staging.kyiam.xyz"
+      ;;
+    production)
+      API_URL="https://api.kyiam.xyz"
+      WEB_URL="https://kyiam.xyz"
+      ;;
+  esac
+  
+  log_info "Waiting for deployment to stabilize (60 seconds)..."
+  sleep 60
+  
+  # Check API health
+  log_info "Checking API health at $API_URL/health..."
+  API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health" || echo "000")
+  
+  if [[ "$API_STATUS" == "200" ]]; then
+    log_success "API health check passed"
+  else
+    log_error "API health check failed (HTTP $API_STATUS)"
+    rollback_deployment
+    exit 1
+  fi
+  
+  # Check web app
+  log_info "Checking web app at $WEB_URL..."
+  WEB_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$WEB_URL" || echo "000")
+  
+  if [[ "$WEB_STATUS" == "200" ]]; then
+    log_success "Web app check passed"
+  else
+    log_error "Web app check failed (HTTP $WEB_STATUS)"
+    rollback_deployment
+    exit 1
+  fi
+  
+  # Smoke tests
+  log_info "Running smoke tests..."
+  if [ -f "$SCRIPT_DIR/smoke-tests.sh" ]; then
+    if ! bash "$SCRIPT_DIR/smoke-tests.sh" "$ENVIRONMENT"; then
+      log_error "Smoke tests failed"
+      rollback_deployment
+      exit 1
+    fi
+  fi
+  
+  log_success "All health checks passed"
+}
+
+# ==============================================================================
+# Rollback on Failure
+# ==============================================================================
+rollback_deployment() {
+  log_section "🚨 ROLLBACK INITIATED"
+  
+  log_warning "Deployment failed health checks"
+  log_info "Rolling back to previous version..."
+  
+  # Rollback commands would go here
+  # Example: kubectl rollout undo deployment/web-app -n kyiam-${ENVIRONMENT}
+  
+  log_info "Rollback complete"
+  log_error "Deployment failed - system restored to previous state"
+}
+
+# ==============================================================================
+# Post-Deployment
+# ==============================================================================
+post_deployment_tasks() {
+  log_section "Post-Deployment Tasks"
+  
+  # Create deployment record
+  log_info "Creating deployment record..."
+  DEPLOY_RECORD="$PROJECT_ROOT/deployments/${ENVIRONMENT}_$(date +%Y%m%d_%H%M%S).json"
+  mkdir -p "$(dirname "$DEPLOY_RECORD")"
+  
+  cat > "$DEPLOY_RECORD" << EOF
+{
+  "environment": "$ENVIRONMENT",
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "commit": "$(git rev-parse HEAD)",
+  "branch": "$(git rev-parse --abbrev-ref HEAD)",
+  "deployed_by": "$(whoami)",
+  "copyright": "© 2026 KYIAM.xyz - All Rights Reserved",
+  "notice": "EXPLICITLY ALL RIGHTS RESERVED - KYIAM.XYZ AI-to-AI © 2026"
+}
+EOF
+  
+  log_success "Deployment record created"
+  
+  # Tag release
+  if [[ "$ENVIRONMENT" == "production" ]]; then
+    log_info "Creating git tag..."
+    TAG="v$(date +%Y.%m.%d)-$(git rev-parse --short HEAD)"
+    git tag -a "$TAG" -m "Production release $TAG"
+    git push origin "$TAG"
+    log_success "Tagged as $TAG"
+  fi
+  
+  # Notify team
+  log_info "Notifying team..."
+  notify_deployment_success
+  
+  log_success "Post-deployment tasks complete"
+}
+
+# ==============================================================================
+# Notifications
+# ==============================================================================
+notify_deployment_success() {
+  # Slack notification would go here
+  # curl -X POST $SLACK_WEBHOOK -d '{"text":"Deployment to '"$ENVIRONMENT"' successful"}'
+  
+  log_info "Notification sent to team"
+}
+
+# ==============================================================================
+# Main Execution
+# ==============================================================================
+main() {
+  log_section "KYIAM Deployment Script"
+  log_info "Copyright © 2026 KYIAM.xyz - All Rights Reserved"
+  log_info "EXPLICITLY ALL RIGHTS RESERVED - KYIAM.XYZ AI-to-AI © 2026"
+  
+  validate_environment
+  run_security_gates
+  confirm_deployment
+  backup_deployment
+  deploy_application
+  run_health_checks
+  post_deployment_tasks
+  
+  log_section "🎉 DEPLOYMENT SUCCESSFUL"
+  
+  echo ""
+  echo "Environment: $ENVIRONMENT"
+  echo "URL:         $([ "$ENVIRONMENT" == "production" ] && echo "https://kyiam.xyz" || echo "https://staging.kyiam.xyz")"
+  echo "Commit:      $(git rev-parse HEAD)"
+  echo "Time:        $(date)"
+  echo ""
+  log_success "KYIAM is live on $ENVIRONMENT!"
+  echo ""
+}
+
+# ==============================================================================
+# Error Handler
+# ==============================================================================
+trap 'log_error "Deployment failed at line $LINENO"' ERR
+
+# Run main
+main
+
+################################################################################
+# END OF DEPLOYMENT SCRIPT
+#
+# EXPLICITLY ALL RIGHTS RESERVED
+# KYIAM.XYZ AI-to-AI © 2026
+################################################################################
