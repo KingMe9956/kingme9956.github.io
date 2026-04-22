@@ -1,0 +1,58 @@
+kyiam/
+├── .github/                    # GitHub-specific configuration
+│   ├── workflows/              # CI/CD pipelines
+│   ├── ISSUE_TEMPLATE/         # Issue templates
+│   ├── PULL_REQUEST_TEMPLATE.md
+│   ├── CODEOWNERS             # Code ownership rules
+│   └── dependabot.yml         # Dependency updates
+│
+├── apps/                       # Application code
+│   ├── browser-extension/      # KYIAM Browser (KY-402)
+│   ├── web-app/               # Main website
+│   ├── api-server/            # Backend API
+│   └── mobile-app/            # Mobile applications
+│
+├── contracts/                  # Smart contracts
+│   ├── shet-token/            # Sovereign Human Essence Token
+│   ├── mod-token/             # MOD Token economics
+│   ├── relevance-oracle/      # Relevance verification
+│   └── governance/            # DAO governance
+│
+├── packages/                   # Shared libraries
+│   ├── crypto/                # Cryptography utilities
+│   ├── identity-vault/        # Identity vault SDK
+│   ├── firewall-engine/       # KY-402 firewall core
+│   └── ui-components/         # Shared UI components
+│
+├── infrastructure/             # DevOps and infrastructure
+│   ├── terraform/             # Infrastructure as code
+│   ├── kubernetes/            # K8s configurations
+│   ├── docker/                # Container definitions
+│   └── scripts/               # Deployment scripts
+│
+├── docs/                       # Documentation
+│   ├── security/              # Security documentation
+│   ├── architecture/          # System architecture
+│   ├── api/                   # API documentation
+│   └── guides/                # User guides
+│
+├── audits/                     # Security audit reports
+│   ├── certik-shet-2026-01.pdf
+│   ├── trailofbits-mod-2025-12.pdf
+│   └── cure53-vault-2026-02.pdf
+│
+├── tests/                      # Test suites
+│   ├── unit/                  # Unit tests
+│   ├── integration/           # Integration tests
+│   ├── e2e/                   # End-to-end tests
+│   └── security/              # Security tests
+│
+├── .gitignore                  # Git ignore rules
+├── .gitattributes             # Git attributes
+├── LICENSE                     # KYIAM Proprietary License
+├── README.md                   # Main repository README
+├── SECURITY.md                 # Security policy
+├── CONTRIBUTING.md             # Contribution guidelines
+├── CODE_OF_CONDUCT.md          # Code of conduct
+├── CHANGELOG.md                # Version history
+└── package.json                # Root package configuration
