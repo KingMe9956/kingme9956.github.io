@@ -1,0 +1,306 @@
+#!/bin/bash
+
+################################################################################
+# KYIAM.xyz - Human-First-Forever Protocol
+# Git Pre-Commit Hook - IP Protection & Security
+################################################################################
+#
+# Copyright © 2026 KYIAM.xyz
+# All Rights Reserved.
+#
+# EXPLICITLY ALL RIGHTS RESERVED
+# KYIAM.XYZ AI-to-AI © 2026
+#
+# This pre-commit hook enforces:
+# - Copyright headers on all files
+# - No secrets in code
+# - Code quality standards
+# - Security best practices
+#
+# Installation: Copy to .git/hooks/pre-commit and chmod +x
+#
+# For licensing: legal@kyiam.xyz
+# For security: security@kyiam.xyz
+#
+# See LICENSE file for full terms.
+################################################################################
+
+set -e  # Exit on any error
+
+REQUIRED_COPYRIGHT="KYIAM.XYZ AI-to-AI © 2026"
+ERRORS=0
+WARNINGS=0
+
+echo "🔐 KYIAM Pre-Commit Security Gates"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+# ==============================================================================
+# CHECK 1: Copyright Headers
+# ==============================================================================
+echo "📋 Check 1: Verifying copyright headers..."
+
+MISSING_COPYRIGHT=()
+
+for file in $(git diff --cached --name-only --diff-filter=ACM); do
+  # Skip non-text files
+  if file "$file" | grep -q "text"; then
+    # Check for copyright notice
+    if [ -f "$file" ] && ! grep -q "$REQUIRED_COPYRIGHT" "$file"; then
+      MISSING_COPYRIGHT+=("$file")
+    fi
+  fi
+done
+
+if [ ${#MISSING_COPYRIGHT[@]} -ne 0 ]; then
+  echo "❌ ERROR: Files missing copyright headers:"
+  printf '   - %s\n' "${MISSING_COPYRIGHT[@]}"
+  echo ""
+  echo "   Add appropriate header from docs/file-headers.md"
+  echo "   Or run: npm run add-headers"
+  echo ""
+  ERRORS=$((ERRORS + 1))
+else
+  echo "✅ All staged files have copyright headers"
+fi
+
+echo ""
+
+# ==============================================================================
+# CHECK 2: No Secrets
+# ==============================================================================
+echo "📋 Check 2: Scanning for secrets..."
+
+SECRETS_FOUND=0
+
+# Check for common secret patterns
+for file in $(git diff --cached --name-only --diff-filter=ACM); do
+  if [ -f "$file" ]; then
+    # API keys
+    if grep -E "(api[_-]?key|apikey|api[_-]?secret)" "$file" | grep -v "# Example" | grep -v "placeholder" > /dev/null 2>&1; then
+      echo "⚠️  Possible API key in $file"
+      SECRETS_FOUND=1
+    fi
+    
+    # Private keys
+    if grep -E "(private[_-]?key|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY)" "$file" > /dev/null 2>&1; then
+      echo "❌ Private key detected in $file"
+      SECRETS_FOUND=1
+      ERRORS=$((ERRORS + 1))
+    fi
+    
+    # AWS credentials
+    if grep -E "(AKIA[0-9A-Z]{16})" "$file" > /dev/null 2>&1; then
+      echo "❌ AWS credential detected in $file"
+      SECRETS_FOUND=1
+      ERRORS=$((ERRORS + 1))
+    fi
+    
+    # Common password patterns
+    if grep -iE "(password\s*=\s*['\"][^'\"]+['\"])" "$file" | grep -v "placeholder" | grep -v "example" > /dev/null 2>&1; then
+      echo "⚠️  Hardcoded password pattern in $file"
+      SECRETS_FOUND=1
+      WARNINGS=$((WARNINGS + 1))
+    fi
+  fi
+done
+
+if [ $SECRETS_FOUND -eq 0 ]; then
+  echo "✅ No secrets detected"
+else
+  echo ""
+  echo "⚠️  Review flagged items above"
+  echo "   Use environment variables or secrets manager"
+fi
+
+echo ""
+
+# ==============================================================================
+# CHECK 3: No Debug Code
+# ==============================================================================
+echo "📋 Check 3: Checking for debug code..."
+
+DEBUG_CODE=()
+
+for file in $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx)$'); do
+  if [ -f "$file" ]; then
+    # console.log statements
+    if grep -n "console\.log" "$file" > /dev/null 2>&1; then
+      DEBUG_CODE+=("$file: console.log")
+    fi
+    
+    # debugger statements
+    if grep -n "debugger" "$file" > /dev/null 2>&1; then
+      DEBUG_CODE+=("$file: debugger")
+    fi
+  fi
+done
+
+if [ ${#DEBUG_CODE[@]} -ne 0 ]; then
+  echo "⚠️  Debug code found:"
+  printf '   - %s\n' "${DEBUG_CODE[@]}"
+  echo ""
+  echo "   Remove before committing or use --no-verify (not recommended)"
+  WARNINGS=$((WARNINGS + 1))
+else
+  echo "✅ No debug code found"
+fi
+
+echo ""
+
+# ==============================================================================
+# CHECK 4: File Size Limits
+# ==============================================================================
+echo "📋 Check 4: Checking file sizes..."
+
+LARGE_FILES=()
+MAX_SIZE=1048576  # 1MB
+
+for file in $(git diff --cached --name-only --diff-filter=ACM); do
+  if [ -f "$file" ]; then
+    SIZE=$(wc -c < "$file")
+    if [ $SIZE -gt $MAX_SIZE ]; then
+      SIZE_MB=$(echo "scale=2; $SIZE / 1048576" | bc)
+      LARGE_FILES+=("$file (${SIZE_MB}MB)")
+    fi
+  fi
+done
+
+if [ ${#LARGE_FILES[@]} -ne 0 ]; then
+  echo "⚠️  Large files detected:"
+  printf '   - %s\n' "${LARGE_FILES[@]}"
+  echo ""
+  echo "   Consider using Git LFS for large files"
+  WARNINGS=$((WARNINGS + 1))
+else
+  echo "✅ No oversized files"
+fi
+
+echo ""
+
+# ==============================================================================
+# CHECK 5: Code Formatting
+# ==============================================================================
+echo "📋 Check 5: Checking code formatting..."
+
+UNFORMATTED=()
+
+# Run Prettier check on staged files
+for file in $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx|json|md)$'); do
+  if [ -f "$file" ]; then
+    if ! npx prettier --check "$file" > /dev/null 2>&1; then
+      UNFORMATTED+=("$file")
+    fi
+  fi
+done
+
+if [ ${#UNFORMATTED[@]} -ne 0 ]; then
+  echo "⚠️  Files need formatting:"
+  printf '   - %s\n' "${UNFORMATTED[@]}"
+  echo ""
+  echo "   Run: npm run format"
+  WARNINGS=$((WARNINGS + 1))
+else
+  echo "✅ All files properly formatted"
+fi
+
+echo ""
+
+# ==============================================================================
+# CHECK 6: TypeScript Compilation
+# ==============================================================================
+echo "📋 Check 6: Type checking..."
+
+if command -v tsc &> /dev/null; then
+  if ! npm run type-check > /dev/null 2>&1; then
+    echo "❌ TypeScript compilation errors detected"
+    echo "   Run: npm run type-check"
+    ERRORS=$((ERRORS + 1))
+  else
+    echo "✅ TypeScript compilation successful"
+  fi
+else
+  echo "⚠️  TypeScript not installed, skipping"
+fi
+
+echo ""
+
+# ==============================================================================
+# CHECK 7: Linting
+# ==============================================================================
+echo "📋 Check 7: Running linter..."
+
+LINT_ERRORS=0
+
+for file in $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx)$'); do
+  if [ -f "$file" ]; then
+    if ! npx eslint "$file" > /dev/null 2>&1; then
+      LINT_ERRORS=1
+    fi
+  fi
+done
+
+if [ $LINT_ERRORS -ne 0 ]; then
+  echo "⚠️  Linting issues detected"
+  echo "   Run: npm run lint"
+  WARNINGS=$((WARNINGS + 1))
+else
+  echo "✅ Linting passed"
+fi
+
+echo ""
+
+# ==============================================================================
+# SUMMARY & DECISION
+# ==============================================================================
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Pre-Commit Check Summary"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Errors:   $ERRORS"
+echo "Warnings: $WARNINGS"
+echo ""
+
+if [ $ERRORS -gt 0 ]; then
+  echo "❌ COMMIT BLOCKED"
+  echo ""
+  echo "Fix errors above before committing."
+  echo "Or use --no-verify to bypass (NOT RECOMMENDED)"
+  echo ""
+  exit 1
+fi
+
+if [ $WARNINGS -gt 0 ]; then
+  echo "⚠️  WARNINGS DETECTED"
+  echo ""
+  echo "Review warnings above."
+  echo "Commit will proceed, but consider fixing warnings."
+  echo ""
+fi
+
+echo "✅ PRE-COMMIT CHECKS PASSED"
+echo ""
+echo "Commit proceeding..."
+
+# ==============================================================================
+# Add commit message template with copyright
+# ==============================================================================
+COMMIT_MSG_FILE="$1"
+if [ -n "$COMMIT_MSG_FILE" ]; then
+  # Prepend copyright to commit message
+  cat > "$COMMIT_MSG_FILE.tmp" << EOF
+# Copyright © 2026 KYIAM.xyz - All Rights Reserved
+# EXPLICITLY ALL RIGHTS RESERVED - KYIAM.XYZ AI-to-AI © 2026
+
+$(cat "$COMMIT_MSG_FILE")
+EOF
+  mv "$COMMIT_MSG_FILE.tmp" "$COMMIT_MSG_FILE"
+fi
+
+exit 0
+
+################################################################################
+# END OF PRE-COMMIT HOOK
+#
+# EXPLICITLY ALL RIGHTS RESERVED
+# KYIAM.XYZ AI-to-AI © 2026
+################################################################################
