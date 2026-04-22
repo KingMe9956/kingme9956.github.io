@@ -1,0 +1,24 @@
+{
+  "name": "@kyiam/[package-name]",
+  "version": "1.0.0",
+  "description": "KYIAM Human-First-Forever Protocol - [Component Description]",
+  "copyright": "Copyright © 2026 KYIAM.xyz - All Rights Reserved",
+  "license": "PROPRIETARY",
+  "private": true,
+  "author": {
+    "name": "KYIAM.xyz",
+    "email": "legal@kyiam.xyz",
+    "url": "https://kyiam.xyz"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kyiam/[repo-name].git"
+  },
+  "bugs": {
+    "url": "https://github.com/kyiam/[repo-name]/issues",
+    "email": "security@kyiam.xyz"
+  },
+  "config": {
+    "copyright_notice": "EXPLICITLY ALL RIGHTS RESERVED - KYIAM.XYZ AI-to-AI © 2026"
+  }
+}
