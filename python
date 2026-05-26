@@ -1,0 +1,26 @@
+import socket
+
+def start_receiver(port=5001):
+    # Create a standard internet socket
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # Bind to all local network interfaces
+    server.bind(('0.0.0.0', port))
+    server.listen(1)
+    print(f"Waiting for direct connection on port {port}...")
+    
+    # Establish direct connection with peer
+    conn, addr = server.accept()
+    print(f"Connected directly to peer at: {addr}")
+    
+    while True:
+        data = conn.recv(1024).decode('utf-8')
+        if not data or data.lower() == 'exit':
+            break
+        print(f"Received: {data}")
+        conn.sendall(b"Message received without corporate servers.")
+        
+    conn.close()
+
+if __name__ == "__main__":
+    start_receiver()
+
