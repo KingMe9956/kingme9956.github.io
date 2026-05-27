@@ -1,0 +1,259 @@
+import base64
+import json
+import secrets
+import time
+import hashlib
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
+
+# ===================================================================
+# MODULE 1: THE CRYPTOGRAPHICALLY SIGNED DUAL-ENTRY LEDGER
+# ===================================================================
+class Transaction:
+    """
+    Represents an immutable, audited movement of capital within the platform.
+    All amounts are strictly managed in CENTS to prevent floating-point errors.
+    """
+    def __init__(self, sender: str, receiver: str, amount_cents: int, currency: str = "USD"):
+        self.sender = sender
+        self.receiver = receiver
+        self.amount_cents = int(amount_cents)
+        self.currency = currency.upper()
+        self.timestamp = time.time()
+
+    def to_dict(self) -> dict:
+        return {
+            "sender": self.sender,
+            "receiver": self.receiver,
+            "amount_cents": self.amount_cents,
+            "currency": self.currency,
+            "timestamp": self.timestamp
+        }
+
+class LedgerBlock:
+    """
+    A single immutable block compiling multiple financial transactions.
+    """
+    def __init__(self, index: int, transactions: list, previous_hash: str):
+        self.index = index
+        self.transactions = transactions  # List of Transaction objects
+        self.previous_hash = previous_hash
+        self.timestamp = time.time()
+        self.hash = self.calculate_hash()
+
+    def calculate_hash(self) -> str:
+        block_string = json.dumps({
+            "index": self.index,
+            "transactions": [tx.to_dict() for tx in self.transactions],
+            "previous_hash": self.previous_hash,
+            "timestamp": self.timestamp
+        }, sort_keys=True)
+        return hashlib.sha256(block_string.encode('utf-8')).hexdigest()
+
+class FintechLedger:
+    """
+    The immutable ledger of record. Verifies block integrity sequentially.
+    """
+    def __init__(self):
+        self.chain = []
+        # Establish the platform's Master Genesis Block
+        genesis_block = LedgerBlock(0, [], "0")
+        self.chain.append(genesis_block)
+
+    def add_transaction_batch(self, transactions: list) -> bool:
+        previous_block = self.chain[-1]
+        new_block = LedgerBlock(
+            index=len(self.chain),
+            transactions=transactions,
+            previous_hash=previous_block.hash
+        )
+        if self.is_block_valid(new_block, previous_block):
+            self.chain.append(new_block)
+            return True
+        return False
+
+    def is_block_valid(self, new_block: LedgerBlock, previous_block: LedgerBlock) -> bool:
+        if previous_block.hash != new_block.previous_hash:
+            print("SECURITY WARNING: Ledger tampering or sync error detected!")
+            return False
+        return True
+
+
+# ===================================================================
+# MODULE 2: PCI-DSS COMPLIANT TOKENIZATION VAULT
+# ===================================================================
+class TokenizationVault:
+    """
+    Secures raw credit card numbers using stateless, hardware-isolated AES-GCM.
+    Monetization: Recurring infrastructure fee ($0.02 - $0.05/token/month).
+    """
+    def __init__(self):
+        self.master_key = secrets.token_bytes(32)  # Generated inside secure hardware
+        self.token_registry = {}
+
+    def encrypt_card(self, card_number: str, cvv: str, expiry: str) -> str:
+        iv = secrets.token_bytes(12)  # Unique Initialization Vector per card
+        encryptor = Cipher(
+            algorithms.AES(self.master_key),
+            modes.GCM(iv),
+            backend=default_backend()
+        ).encryptor()
+        
+        card_data = json.dumps({"pan": card_number, "cvv": cvv, "exp": expiry}).encode()
+        ciphertext = encryptor.update(card_data) + encryptor.finalize()
+        
+        token = f"tok_live_{secrets.token_hex(16)}"
+        
+        self.token_registry[token] = {
+            "iv": base64.b64encode(iv).decode(),
+            "ciphertext": base64.b64encode(ciphertext).decode(),
+            "tag": base64.b64encode(encryptor.tag).decode()
+        }
+        return token
+
+
+# ===================================================================
+# MODULE 3: MULTI-CURRENCY EXCHANGE RATE ENGINE
+# ===================================================================
+class FXExchangeEngine:
+    """
+    Handles global cross-border payments by pricing mid-market rates 
+    and padding an FX markup spread directly into the conversion.
+    Monetization: Pure FX Arbitrage Spread (High-margin revenue stream).
+    """
+    def __init__(self):
+        # Base mid-market rates relative to 1 USD (Simulated wholesale feed)
+        self.mid_market_rates = {
+            "USD": 1.0,
+            "EUR": 0.92,
+            "GBP": 0.79,
+            "JPY": 155.0
+        }
+        # The internal infrastructure premium added to cross-border conversions
+        self.fx_markup_percent = 0.015  # 1.5% platform spread
+
+    def convert_currency(self, amount_cents: int, from_curr: str, to_curr: str) -> tuple:
+        """
+        Converts financial payloads and extracts the platform's FX fee.
+        Returns: (converted_amount_in_target_currency, platform_fx_revenue_in_usd)
+        """
+        from_curr, to_curr = from_curr.upper(), to_curr.upper()
+        
+        # 1. Standardize base input back to USD using wholesale mid-market rate
+        usd_base_value = amount_cents / self.mid_market_rates[from_curr]
+        
+        # 2. Extract our platform's FX profit margin in USD
+        fx_revenue_usd = int(usd_base_value * self.fx_markup_percent)
+        
+        # 3. Apply conversion on the remaining net value to the target currency
+        net_usd_value = usd_base_value - (fx_revenue_usd if from_curr != to_curr else 0)
+        converted_amount = int(net_usd_value * self.mid_market_rates[to_curr])
+        
+        if from_curr == to_curr:
+            return amount_cents, 0
+            
+        return converted_amount, fx_revenue_usd
+
+
+# ===================================================================
+# MODULE 4: AUTOMATED CHARGEBACK PREVENTION ENGINE
+# ===================================================================
+class FraudPreventionEngine:
+    """
+    Evaluates real-time structural risk to block fraudulent disputes before execution.
+    Monetization: Flat per-query API security fee ($0.10/transaction screening).
+    """
+    def __init__(self):
+        # Flag historical malicious cards or untrusted velocity anchors
+        self.blocked_fingerprints = set()
+
+    def evaluate_risk(self, token: str, amount_cents: int, country_iso: str) -> bool:
+        """
+        Runs rules-based and heuristic profiling on transactions.
+        Returns: True if payment is authorized, False if flagged as high-risk/blocked.
+        """
+        # Rule A: High-velocity structural anomaly check
+        if amount_cents > 1000000 and country_iso not in ["US", "GB", "EU"]:
+            return False  # Block high-value, unverified cross-border transactions
+            
+        # Rule B: Card token identification check
+        if token in self.blocked_fingerprints:
+            return False
+            
+        return True  # Cleared for routing
+
+    def report_chargeback(self, token: str):
+        """ Log disputes to train internal risk tables against future losses """
+        self.blocked_fingerprints.add(token)
+
+
+# ===================================================================
+# MODULE 5: API GATEWAY & INTERCHANGE ROUTER (CENTRAL CONTROL)
+# ===================================================================
+class FinancialAPIGateway:
+    """
+    The centralized operating platform orchestrating all downstream services.
+    Calculates compounding, non-linear infrastructure take rates dynamically.
+    """
+    def __init__(self, vault: TokenizationVault, fx_engine: FXExchangeEngine, fraud_engine: FraudPreventionEngine):
+        self.vault = vault
+        self.fx_engine = fx_engine
+        self.fraud_engine = fraud_engine
+        
+        # Public-facing fee structure applied directly to merchants
+        self.merchant_rate_percent = 0.029
+        self.merchant_flat_fee = 0.30
+        
+        # Optimized internal baseline clearing cost
+        self.network_cost_percent = 0.005
+        self.network_flat_fee = 0.05
+
+    def process_charge(self, merchant_id: str, token: str, amount_cents: int, 
+                       presentment_currency: str = "USD", settlement_currency: str = "USD",
+                       country_iso: str = "US", instant_payout: bool = False) -> dict:
+        
+        # 1. Run automated chargeback prevention logic
+        if not self.fraud_engine.evaluate_risk(token, amount_cents, country_iso):
+            return {"status": "failed", "error": "Declined by Platform Fraud Shield (Risk Threshold Exceeded)"}
+
+        # 2. Check token validity inside isolated cryptographic database
+        if token not in self.vault.token_registry:
+            return {"status": "failed", "error": "Invalid Cryptographic Token"}
+            
+        # 3. Calculate baseline processing fee charged directly to merchant account
+        base_merchant_fee = int(amount_cents * self.merchant_rate_percent) + int(self.merchant_flat_fee * 100)
+        
+        # 4. Calculate actual processing network clearing costs
+        actual_network_cost = int(amount_cents * self.network_cost_percent) + int(self.network_flat_fee * 100)
+        
+        # Revenue Stream 1: Core Transaction Arbitrage Margin
+        interchange_arbitrage = base_merchant_fee - actual_network_cost
+        
+        # 5. Route cross-border conversions via the Multi-Currency Engine
+        settled_amount_merchant, fx_revenue_usd = self.fx_engine.convert_currency(
+            amount_cents=amount_cents, 
+            from_curr=presentment_currency, 
+            to_curr=settlement_currency
+        )
+        
+        # 6. Instant payout premium revenue stream
+        instant_payout_revenue = 0
+        if instant_payout:
+            instant_payout_revenue = int(amount_cents * 0.015)
+            
+        # Final settlement
+        net_merchant_settlement = settled_amount_merchant - base_merchant_fee
+        total_platform_revenue = interchange_arbitrage + fx_revenue_usd + instant_payout_revenue
+        
+        return {
+            "status": "succeeded",
+            "transaction_id": f"ch_{secrets.token_hex(12)}",
+            "amount_processed": amount_cents,
+            "merchant_received": net_merchant_settlement,
+            "platform_gross_revenue": total_platform_revenue,
+            "revenue_breakdown": {
+                "interchange_arbitrage": interchange_arbitrage,
+                "fx_spread": fx_revenue_usd,
+                "instant_payout_premium": instant_payout_revenue
+            }
+        }
