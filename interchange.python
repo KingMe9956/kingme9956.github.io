@@ -1,0 +1,21 @@
+class InterchangeRouter:
+    def __init__(self):
+        # Supported payment rails and their cost/speed profiles
+        self.rails = {
+            "credit_card": {"fee_percent": 0.029, "flat_fee": 0.30, "speed_sec": 2},
+            "ach": {"fee_percent": 0.000, "flat_fee": 0.25, "speed_sec": 172800},
+            "instant_rail": {"fee_percent": 0.001, "flat_fee": 0.10, "speed_sec": 5}
+        }
+
+    def route_transaction(self, amount, priority="low_cost"):
+        """
+        Dynamically selects the optimal payment engine based on business rules.
+        """
+        if priority == "instant" or amount > 10000:
+            selected_rail = "instant_rail"
+        else:
+            # Choose the lowest cost rail
+            selected_rail = min(self.rails, key=lambda r: (self.rails[r]["fee_percent"] * amount) + self.rails[r]["flat_fee"])
+            
+        fees = (self.rails[selected_rail]["fee_percent"] * amount) + self.rails[selected_rail]["flat_fee"]
+        return selected_rail, fees
