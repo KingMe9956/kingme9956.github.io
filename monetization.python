@@ -1,0 +1,137 @@
+import secrets
+import json
+import time
+
+# ===================================================================
+# THE DOCUFIFUNNEL INTERFACE LAYER (FRONTEND PLATFORM BLUEPRINT)
+# ===================================================================
+class DocuFiLandingPage:
+    """
+    Renders high-converting static structure blueprints and marketing telemetry.
+    The primary goal is minimizing friction to drive cold traffic to the tripwire.
+    """
+    def __init__(self):
+        self.headline = "Turn Unstructured Enterprise Documents Into Instant Cash Flow."
+        self.subheadline = "The autonomous, zero-trust ingestion layer routing document data straight to settlement rails."
+        self.tripwire_offer_name = "DocuFi Core Micro-Node Core License"
+        self.tripwire_price_cents = 900  # $9.00 Low-Friction Entry Point
+
+    def generate_html_metadata(self) -> dict:
+        """ Returns conversion optimization elements for frontend injection """
+        return {
+            "seo_title": "DocuFiFunnel | Enterprise Document Ledger Automation",
+            "hero_headline": self.headline,
+            "hero_subheadline": self.subheadline,
+            "primary_cta": f"Deploy Your First Ingestion Node for Only ${self.tripwire_price_cents / 100:.2f}",
+            "trust_signals": ["PCI-DSS Level 1 Compliant", "AES-256 Vault Isolation", "Zero Middleman Fees"]
+        }
+
+
+# ===================================================================
+# THE TRIPWIRE & MONETIZATION ROUTER (FUNNEL STATE MACHINE)
+# ===================================================================
+class FunnelStateMachine:
+    """
+    Manages user progression through the monetization funnel. Handles stateful
+    session memory to allow seamless One-Click Upsells without re-entering card details.
+    """
+    def __init__(self, api_gateway_instance):
+        self.gateway = api_gateway_instance  # Connects directly to FinancialAPIGateway (Module 5)
+        self.active_sessions = {}
+        
+        # High-Margin Upsell Offer Definition
+        self.upsell_offer = {
+            "offer_id": "upsell_global_fx_shield",
+            "name": "Global Multi-Currency FX Arbitrage Module Expansion",
+            "price_cents": 19700,  # $197.00 High-Margin Cash Injection
+            "description": "Unlock real-time automated 1.5% cross-border profit routing."
+        }
+
+    def initiate_tripwire_checkout(self, email: str, raw_card_data: dict) -> dict:
+        """
+        Executes Step 1: The Tripwire. Uses the secure Tokenization Vault
+        to generate a permanent token anchor, paving the way for the 1CU.
+        """
+        session_id = f"sess_{secrets.token_hex(12)}"
+        
+        # 1. Tokenize card data inside our isolated compliance vault instantly
+        secure_token = self.gateway.vault.encrypt_card(
+            card_number=raw_card_data["card_number"],
+            cvv=raw_card_data["cvv"],
+            expiry=raw_card_data["expiry"]
+        )
+        
+        # 2. Process the initial $9.00 tripwire charge through the core API
+        tripwire_price = 900
+        charge_resolution = self.gateway.process_charge(
+            merchant_id="docufi_platform_primary",
+            token=secure_token,
+            amount_cents=tripwire_price,
+            presentment_currency="USD",
+            settlement_currency="USD",
+            country_iso="US"
+        )
+        
+        if charge_resolution["status"] == "succeeded":
+            # Store the session and card token anchor to execute one-click upsells safely
+            self.active_sessions[session_id] = {
+                "email": email,
+                "token": secure_token,
+                "step": "tripwire_completed",
+                "accumulated_revenue_usd": charge_resolution["platform_gross_revenue"] / 100,
+                "transactions": [charge_resolution["transaction_id"]]
+            }
+            
+            return {
+                "status": "success",
+                "session_id": session_id,
+                "message": "Tripwire payment captured successfully. Presenting One-Click Upsell.",
+                "next_render_step": "RENDER_ONE_CLICK_UPSELL",
+                "upsell_data": self.upsell_offer
+            }
+        
+        return {"status": "failed", "error": "Tripwire checkout declined."}
+
+    def execute_one_click_upsell(self, session_id: str, accept_upsell: bool) -> dict:
+        """
+        Executes Step 2: One-Click Upsell (1CU). Uses the cached cryptographic
+        token to execute a secondary charge instantly without requiring a checkout page redraw.
+        """
+        session = self.active_sessions.get(session_id)
+        if not session:
+            return {"status": "failed", "error": "Invalid or expired funnel session."}
+            
+        if not accept_upsell:
+            session["step"] = "funnel_concluded_declined_upsell"
+            return {
+                "status": "success",
+                "message": "Upsell declined by user. Ascending directly to fulfillment dashboard.",
+                "session_summary": session
+            }
+
+        # Pull the cached token directly out of memory
+        cached_vault_token = session["token"]
+        upsell_price = self.upsell_offer["price_cents"]
+        
+        # Process the $197.00 upsell payload through the financial routing engine
+        upsell_resolution = self.gateway.process_charge(
+            merchant_id="docufi_platform_primary",
+            token=cached_vault_token,
+            amount_cents=upsell_price,
+            presentment_currency="USD",
+            settlement_currency="USD",
+            country_iso="US"
+        )
+        
+        if upsell_resolution["status"] == "succeeded":
+            session["step"] = "funnel_concluded_all_offers_accepted"
+            session["accumulated_revenue_usd"] += upsell_resolution["platform_gross_revenue"] / 100
+            session["transactions"].append(upsell_resolution["transaction_id"])
+            
+            return {
+                "status": "success",
+                "message": "One-Click Upsell successfully appended! Capital account scaled.",
+                "session_summary": session
+            }
+            
+        return {"status": "failed", "error": "Upsell transaction declined by card issuer."}
