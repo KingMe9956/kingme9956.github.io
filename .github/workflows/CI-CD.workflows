@@ -1,0 +1,20 @@
+/kingme9956/DocuFi
+├── .github/workflows/
+│   └── deploy.yml              <-- The automated zero-downtime cluster pipeline
+├── tests/
+│   └── test_core_engines.py    <-- Automated pytest assertions for ledger & vault modules
+├── src/
+│   ├── ledger.py               <-- Cryptographically signed dual-entry cent ledger
+│   ├── vault.py                <-- Isolated hardware-level AES-256-GCM tokenization 
+│   ├── fx_engine.py            <-- Multi-currency engine capturing 1.5% margin spreads
+│   ├── security_shield.py     <-- Anomaly detection & flat-fee fraud profiling
+│   ├── funnel_state.py         <-- Stateful Tripwire ($9) & One-Click Upsell ($197) logic
+│   └── billing_webhooks.py     <-- HMAC-SHA256 signature verification receiver
+├── database/
+│   └── schema.sql              <-- PostgreSQL transactional database structure
+├── Dockerfile.api              <-- High-volume API container environment
+├── Dockerfile.vault            <-- Isolated, non-root tokenization server container
+├── networking.yaml             <-- Internal cluster network policy boundaries
+├── deployment-api.yaml         <-- Multi-zone Kubernetes deployment configurations
+├── hpa.yaml                    <-- Automatic resource scaling thresholds (70% CPU limits)
+└── README.md                   <-- Primary
