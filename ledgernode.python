@@ -1,0 +1,63 @@
+import hashlib
+import time
+import json
+
+class Transaction:
+    def __init__(self, sender, receiver, amount, currency="USD"):
+        self.sender = sender
+        self.receiver = receiver
+        self.amount = float(amount)
+        self.currency = currency
+        self.timestamp = time.time()
+
+    def to_dict(self):
+        return {
+            "sender": self.sender,
+            "receiver": self.receiver,
+            "amount": self.amount,
+            "currency": self.currency,
+            "timestamp": self.timestamp
+        }
+
+class LedgerBlock:
+    def __init__(self, index, transactions, previous_hash):
+        self.index = index
+        self.transactions = transactions  # List of Transaction objects
+        self.previous_hash = previous_hash
+        self.timestamp = time.time()
+        self.hash = self.calculate_hash()
+
+    def calculate_hash(self):
+        block_string = json.dumps({
+            "index": self.index,
+            "transactions": [tx.to_dict() for tx in self.transactions],
+            "previous_hash": self.previous_hash,
+            "timestamp": self.timestamp
+        }, sort_keys=True)
+        return hashlib.sha256(block_string.encode('utf-8')).hexdigest()
+
+class FintechLedger:
+    def __init__(self):
+        self.chain = []
+        # Initialize the system with a Master Genesis Block
+        genesis_block = LedgerBlock(0, [], "0")
+        self.chain.append(genesis_block)
+
+    def add_transaction_batch(self, transactions):
+        previous_block = self.chain[-1]
+        new_block = LedgerBlock(
+            index=len(self.chain),
+            transactions=transactions,
+            previous_hash=previous_block.hash
+        )
+        # Verify ledger integrity before committing
+        if self.is_block_valid(new_block, previous_block):
+            self.chain.append(new_block)
+            return True
+        return False
+
+    def is_block_valid(self, new_block, previous_block):
+        if previous_block.hash != new_block.previous_hash:
+            print("Security Alert: Ledger tampering detected!")
+            return False
+        return True
