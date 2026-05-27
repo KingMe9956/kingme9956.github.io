@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: docufi-vault-internal-service
+  namespace: docufi-core
+spec:
+  selector:
+    app: docufi-vault
+  ports:
+    - protocol: TCP
+      port: 8443
+      targetPort: 8443
+  type: ClusterIP # Keeps the Tokenization Vault strictly internal to the cluster
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: docufi-api-gateway-service
+  namespace: docufi-core
+spec:
+  selector:
+    app: docufi-api-gateway
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: LoadBalancer # Exposes the main funnel & API endpoints to the public internet
