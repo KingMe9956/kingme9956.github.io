@@ -1,0 +1,95 @@
+name: DocuFiFunnel Enterprise CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main # Triggers the production automation sequence instantly upon a main branch merge
+
+jobs:
+  validate-and-test:
+    name: Code Integrity & Unit Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Out Repository Code
+        uses: actions/checkout@v4
+
+      - name: Initialize Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Architecture Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest cryptography gunicorn
+
+      - name: Run Financial Integrity & Security Unit Tests
+        run: |
+          # Executes your backend test suite to ensure ledger and validation engines pass sanity checks
+          pytest tests/
+
+  build-and-containerize:
+    name: Immutable Docker Image Build & Push
+    needs: validate-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Out Repository Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Container Registry
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build & Publish Core API Gateway
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.api
+          push: true
+          # Tags the container uniquely using the specific GitHub Commit SHA to prevent version overwrites
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/docufi-api:latest
+            ${{ secrets.DOCKER_USERNAME }}/docufi-api:${{ github.sha }}
+
+      - name: Build & Publish Isolated Tokenization Vault
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.vault
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/docufi-vault:latest
+            ${{ secrets.DOCKER_USERNAME }}/docufi-vault:${{ github.sha }}
+
+  orchestrate-kubernetes-deployment:
+    name: Zero-Downtime Cluster Rollover
+    needs: build-and-containerize
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Out Repository Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate & Bind to Kubernetes Cluster
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG_DATA }}
+
+      - name: Dynamic Image Tag Injection
+        run: |
+          # Swaps out generic tags inside your deployment manifests with the newly minted, verified commit image tag
+          sed -i "image: your-registry\/docufi-api:v1.0.0|image: ${{ secrets.DOCKER_USERNAME }}\/docufi-api:${{ github.sha }}|g" deployment-api.yaml
+
+      - name: Apply Declarative Manifest Network Configuration
+        run: |
+          kubectl apply -f networking.yaml
+
+      - name: Execute Zero-Downtime Rolling Restarts
+        run: |
+          kubectl apply -f deployment-api.yaml
+          kubectl apply -f hpa.yaml
+          # Instructs the K8s cluster to cleanly swap old containers with new ones sequentially with 0 platform dropouts
+          kubectl rollout status deployment/docufi-api-gateway-deployment -n docufi-core
