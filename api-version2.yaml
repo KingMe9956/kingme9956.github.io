@@ -1,0 +1,19 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: docufi-api-autoscaler
+  namespace: docufi-core
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: docufi-api-gateway-deployment
+  minReplicas: 3
+  maxReplicas: 50 # Scalable footprint capable of orchestrating millions of transaction requests
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70 # Spin up new server pods automatically if CPU utilization crosses 70%
