@@ -1,0 +1,8 @@
+Step-by-Step DNS Mapping
+
+Change Your Nameservers: Log into your domain registrar (where you buy docu.finance or dfifu.com). Replace the registrar's default nameservers with the custom nameservers provided by your Cloudflare dashboard (e.g., ://cloudflare.com).
+Configure CNAME Records: Inside Cloudflare DNS settings, map your root domain (@) and subdomains (www) to point directly to your GitHub Pages or your Kubernetes LoadBalancer IP address:
+Type: CNAME | Name: @ | Target: kingme9956.github.io | Proxy Status: Proxied (Orange Cloud Enabled)
+Enforce Absolute Cryptographic Traffic Rules: Go to SSL/TLS -> Overview inside Cloudflare and change the encryption mode to Full (Strict). This mandates that communication between the browser, Cloudflare, and your hosting servers is encrypted via trusted, rotating SSL certificates.
+Deploy Webhook Protection (WAF Rules): Go to Security -> WAF. Create a specialized firewall bypass rule for your payment gateway webhooks (e.g., Stripe's IP addresses). This guarantees that your automated billing scripts receive instant data payloads without being accidentally blocked by generic bot-mitigation rules.
+
