@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docufi-api-gateway-deployment
+  namespace: docufi-core
+  labels:
+    app: docufi-api-gateway
+spec:
+  replicas: 3 # Maintains 3 active instances of the engine across the cluster
+  selector:
+    matchLabels:
+      app: docufi-api-gateway
+  template:
+    metadata:
+      labels:
+        app: docufi-api-gateway
+    spec:
+      containers:
+      - name: api-gateway-container
+        image: your-registry/docufi-api:v1.0.0
+        ports:
+        - containerPort: 8080
+        # Resource allocations prevent one runaway task from crashing a physical server node
+        resources:
+          limits:
+            cpu: "1000m"
+            memory: "1024Mi"
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+        # Continuous automated health reporting checks
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
