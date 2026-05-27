@@ -1,0 +1,139 @@
+import hmac
+import hashlib
+import json
+import time
+import secrets
+
+# ===================================================================
+# SUB-ENGINE A: DISTRIBUTED SUBSCRIPTION DATABASE MODEL (MOCK LAYER)
+# ===================================================================
+class CustomerAccountRegistry:
+    """
+    Simulates your persistent relational database layer (e.g., PostgreSQL).
+    Tracks active customer tiers, billing cycles, and feature clearance flags.
+    """
+    def __init__(self):
+        # Database seeds for localized testing tracking
+        self.users_db = {
+            "usr_alpha_9956": {
+                "email": "enterprise@client.com",
+                "subscription_tier": "baseline_free",
+                "status": "inactive",
+                "max_monthly_documents": 100,
+                "current_period_end": 0
+            }
+        }
+
+    def update_subscription(self, customer_id: str, tier: str, status: str, period_end: int, doc_allowance: int):
+        """ Commits structural account state changes to the database """
+        if customer_id not in self.users_db:
+            self.users_db[customer_id] = {}
+        
+        self.users_db[customer_id].update({
+            "subscription_tier": tier,
+            "status": status,
+            "max_monthly_documents": doc_allowance,
+            "current_period_end": period_end
+        })
+        print(f"DATABASE SUCCESS: Account {customer_id} updated to tier [{tier}] status [{status}].")
+
+
+# ===================================================================
+# MAIN ENGINE: CRYPTOGRAPHIC WEBHOOK PROCESSOR
+# ===================================================================
+class BillingWebhookHandler:
+    """
+    Listens for, decrypts, and actions inbound financial subscription state events.
+    Protects your infrastructure margins against replay attacks and spoofing.
+    """
+    def __init__(self, db_instance: CustomerAccountRegistry, ledger_instance):
+        self.db = db_instance
+        self.ledger = ledger_instance # Interfaces with FintechLedger from Module 1
+        # The secret signing key shared between your registrar (e.g., Stripe Dashboard) and DocuFi
+        self.webhook_secret = "whsec_" + secrets.token_hex(32)
+
+    def verify_signature(self, raw_payload: bytes, signature_header: str) -> bool:
+        """
+        Enforces absolute authenticity verification using an HMAC-SHA256 signature check.
+        Prevents malicious attackers from forging arbitrary payment success messages.
+        """
+        try:
+            # Parse signature components (expects format: t=1234567,v1=hash)
+            parts = signature_header.split(",")
+            timestamp = parts[0].split("=")[1]
+            received_hash = parts[1].split("=")[1]
+
+            # Protect against replay attacks: Reject payloads older than 5 minutes
+            if abs(int(time.time()) - int(timestamp)) > 300:
+                print("SECURITY HAZARD: Webhook verification failed due to message age tolerance.")
+                return False
+
+            # Re-create the expected cryptographic signature anchor locally
+            signed_payload = f"{timestamp}.{raw_payload.decode('utf-8')}".encode('utf-8')
+            computed_hash = hmac.new(
+                self.webhook_secret.encode('utf-8'),
+                signed_payload,
+                hashlib.sha256
+            ).hexdigest()
+
+            # Use a constant-time string comparison to defend against timing attacks
+            return hmac.compare_digest(computed_hash, received_hash)
+        except Exception:
+            return False
+
+    def execute_event_routing(self, raw_payload: bytes, signature_header: str) -> dict:
+        """
+        Verifies signatures and dynamically mutates user feature sets per event parameters.
+        """
+        # 1. Cryptographically authenticate incoming data integrity
+        if not self.verify_signature(raw_payload, signature_header):
+            return {"status": "error", "message": "Unauthorized / Compromised Signature Header Signature Verification Failed."}
+
+        event_data = json.loads(raw_payload.decode('utf-8'))
+        event_type = event_data.get("type")
+        data_object = event_data.get("data", {}).get("object", {})
+        customer_id = data_object.get("customer")
+        
+        # 2. Asynchronous Event Type State Routing Matrix
+        if event_type == "customer.subscription.created":
+            # Event: User purchased a plan from your frontend DocuFiFunnel
+            self.db.update_subscription(
+                customer_id=customer_id,
+                tier=data_object.get("plan", {}).get("id", "enterprise_growth"),
+                status="active",
+                period_end=int(data_object.get("current_period_end", time.time() + 2592000)),
+                doc_allowance=10000 # Escalate document limits automatically
+            )
+            return {"status": "processed", "event": event_type}
+
+        elif event_type == "invoice.payment_succeeded":
+            # Event: A monthly recurring subscription auto-charge cleared successfully
+            amount_paid_cents = data_object.get("amount_paid", 0)
+            
+            # Record the subscription revenue directly into your platform Ledger (Module 1)
+            from .main_codebase import Transaction # Internal blueprint routing check
+            tx_node = Transaction(
+                sender=customer_id,
+                receiver="docufi_treasury_vault",
+                amount_cents=amount_paid_cents,
+                currency=data_object.get("currency", "usd")
+            )
+            self.ledger.add_transaction_batch([tx_node])
+            
+            return {"status": "processed", "event": event_type, "ledger_synced": True}
+
+        elif event_type == "invoice.payment_failed":
+            # Event: The user's recurring payment method was declined/expired
+            # Freeze features immediately to lock them out of processing pipelines
+            self.db.update_subscription(
+                customer_id=customer_id,
+                tier="baseline_free",
+                status="past_due_locked",
+                period_end=int(time.time()),
+                doc_allowance=0 # Reduce text processing access down to zero lines
+            )
+            print(f"BILLING ALERT: Payment collection failed for {customer_id}. Revoking ingestion clearance.")
+            return {"status": "actioned_lockout", "event": event_type}
+
+        else:
+            return {"status": "ignored", "message": f"Event type {event_type} ignored by system."}
