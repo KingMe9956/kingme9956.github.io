@@ -1,0 +1,19 @@
+import socket
+
+def start_sender(target_ip, port=5001):
+    # Connect directly to the peer IP address
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect((target_ip, port))
+    print(f"Connected to peer at {target_ip}")
+    
+    while True:
+        msg = input("Enter secure message (or 'exit'): ")
+        client.sendall(msg.encode('utf-8'))
+        if msg.lower() == 'exit':
+            break
+        response = client.recv(1024).decode('utf-8')
+        print(f"Peer response: {response}")
+        
+    client.close()
+
+# Example usage: start_sender('127.0.0.1') for local testing
