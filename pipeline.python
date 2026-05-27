@@ -1,0 +1,164 @@
+import json
+import secrets
+import hashlib
+import time
+
+# ===================================================================
+# DEPENDENCY BRIDGE: STUB COMPLIANCE FOR INTEGRATED LEDGER ROUTING
+# ===================================================================
+# This simulates the data contracts required by your FinancialAPIGateway
+class DocumentPayloadContract:
+    def __init__(self, merchant_id: str, card_token: str, amount_cents: int, 
+                 currency: str, country_iso: str, invoice_reference: str):
+        self.merchant_id = merchant_id
+        self.card_token = card_token
+        self.amount_cents = amount_cents
+        self.currency = currency
+        self.country_iso = country_iso
+        self.invoice_reference = invoice_reference
+
+
+# ===================================================================
+# SUB-ENGINE A: ADAPTIVE SEMANTIC PARSER & STRUCTURIZER
+# ===================================================================
+class AdaptiveDocumentParser:
+    """
+    Simulates an intelligent document processing edge (e.g., Toshiba Edge Engine).
+    Converts unstructured OCR/text feeds into strictly validated JSON financial payloads.
+    """
+    def __init__(self):
+        # Dictionary simulating learned enterprise structural layouts over time
+        self.known_vendor_templates = {
+            "vnd_global_logistics": {"currency": "EUR", "country": "DE", "token": "tok_live_7c4a1b9d0e"},
+            "vnd_tokyo_supply": {"currency": "JPY", "country": "JP", "token": "tok_live_9f8e7d6c5b"},
+            "vnd_domestic_inc": {"currency": "USD", "country": "US", "token": "tok_live_1a2b3c4d5e"}
+        }
+
+    def ingested_text_to_contract(self, raw_unstructured_text: str) -> DocumentPayloadContract:
+        """
+        Parses raw text streams asynchronously, locating critical financial metadata via 
+        adaptive scanning heuristics, normalizing values straight into integer cents.
+        """
+        # Simulated Real-Time Extraction Logic (e.g., matching text patterns autonomously)
+        lines = raw_unstructured_text.lower().split("\n")
+        
+        vendor_id = "vnd_domestic_inc" # Default fallback anchor
+        extracted_amount_cents = 0
+        invoice_id = f"inv_raw_{secrets.token_hex(4)}"
+
+        for line in lines:
+            if "vendor_id:" in line:
+                vendor_id = line.split("vendor_id:")[1].strip()
+            elif "total_due_cents:" in line or "amount:" in line:
+                extracted_amount_cents = int(line.split(":")[1].strip())
+            elif "invoice_ref:" in line:
+                invoice_id = line.split("invoice_ref:")[1].strip()
+
+        # Fetch structural profile parameters safely
+        profile = self.known_vendor_templates.get(vendor_id, self.known_vendor_templates["vnd_domestic_inc"])
+
+        return DocumentPayloadContract(
+            merchant_id=vendor_id,
+            card_token=profile["token"],
+            amount_cents=extracted_amount_cents,
+            currency=profile["currency"],
+            country_iso=profile["country"],
+            invoice_reference=invoice_id
+        )
+
+
+# ===================================================================
+# SUB-ENGINE B: SELF-GOVERNING POLICY DISPATCHER
+# ===================================================================
+class SelfGoverningPolicyShield:
+    """
+    The zero-trust gatekeeper. Executes fine-grained governance rules 
+    on structural data payloads before passing them to the settlement layers.
+    """
+    def __init__(self):
+        # Maximum automated single-invoice payout threshold allowed without multi-sig manual override
+        self.maximum_autonomous_allowance_cents = 5000000 # $50,000.00 USD equivalent
+        self.authorized_networks = {"US", "GB", "DE", "JP", "FR"}
+
+    def evaluate_governance_clearance(self, contract: DocumentPayloadContract) -> tuple:
+        """
+        Enforces real-time operational boundaries.
+        Returns: (is_approved: bool, risk_score: int, anomaly_flag: str)
+        """
+        # Rule 1: Capital Flight / Velocity Ceiling Check
+        if contract.amount_cents > self.maximum_autonomous_allowance_cents:
+            return False, 95, "GOVERNANCE_BREACH: Transaction volume exceeds autonomous threshold limitation."
+            
+        # Rule 2: Geopolitical Border Fence
+        if contract.country_iso not in self.authorized_networks:
+            return False, 80, "COMPLIANCE_REJECTION: Originating country ISO code lacks platform authorization flags."
+            
+        # Rule 3: Missing Token Safety Lock
+        if not contract.card_token.startswith("tok_live_"):
+            return False, 100, "SECURITY_SANITY_FAILURE: Structural payload lacks a valid platform token anchor."
+
+        # Pass clear validation metrics
+        return True, 5, "HEALTHY_TELEMETRY"
+
+
+# ===================================================================
+# INTEGRATED MASTER PIPELINE: ORCHESTRATION LAYER
+# ===================================================================
+class DocumentToPaymentPipeline:
+    """
+    Orchestrates the entire intelligence flow. Takes raw unstructured text input from 
+    document systems, structures it, passes it through autonomous governance checks, 
+    and securely triggers down-stream gateway logic.
+    """
+    def __init__(self, api_gateway_instance):
+        self.parser = AdaptiveDocumentParser()
+        self.governor = SelfGoverningPolicyShield()
+        self.gateway = api_gateway_instance # Links directly to your FinancialAPIGateway from Module 5
+        self.audit_trail = []
+
+    def execute_document_stream(self, raw_text_stream: str, settlement_currency: str = "USD") -> dict:
+        """
+        Executes the full seamless pipeline end-to-end.
+        """
+        start_time = time.time()
+        
+        # Step 1: Structural Extraction Layer
+        financial_contract = self.parser.ingested_text_to_contract(raw_text_stream)
+        
+        # Step 2: Fine-Grained Autonomous Governance Check
+        cleared, risk_score, system_log = self.governor.evaluate_governance_clearance(financial_contract)
+        
+        if not cleared:
+            fail_packet = {
+                "pipeline_status": "halted_by_governance",
+                "invoice_reference": financial_contract.invoice_reference,
+                "risk_score": risk_score,
+                "error_classification": system_log,
+                "execution_ms": int((time.time() - start_time) * 1000)
+            }
+            self.audit_trail.append(fail_packet)
+            return fail_packet
+
+        # Step 3: Trigger Financial API Gateway Routing Engine (Module 5)
+        # Bypasses corporate processing overhead by invoking your micro-service architectures directly
+        gateway_response = self.gateway.process_charge(
+            merchant_id=financial_contract.merchant_id,
+            token=financial_contract.card_token,
+            amount_cents=financial_contract.amount_cents,
+            presentment_currency=financial_contract.currency,
+            settlement_currency=settlement_currency,
+            country_iso=financial_contract.country_iso,
+            instant_payout=False
+        )
+        
+        # Step 4: Finalize Ingestion Lifecycle Telemetry
+        pipeline_success_packet = {
+            "pipeline_status": "completed_successfully",
+            "invoice_reference": financial_contract.invoice_reference,
+            "governance_audit": {"risk_score": risk_score, "status": system_log},
+            "financial_resolution": gateway_response,
+            "execution_ms": int((time.time() - start_time) * 1000)
+        }
+        
+        self.audit_trail.append(pipeline_success_packet)
+        return pipeline_success_packet
