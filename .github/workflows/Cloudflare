@@ -1,0 +1,2 @@
+[ Public Web Traffic ] ──► [ Cloudflare Edge WAF ] ──► [ GitHub Pages / K8s Cluster ]
+                                (SSL / DDoS Shield)
